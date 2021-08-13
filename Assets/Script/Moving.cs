@@ -9,6 +9,8 @@ public class Moving : MonoBehaviour
     public bool[] hasWeapons;
     public GameObject[] grenades;
     public int hasGrenades;
+    public GameObject grenadeObject;
+
 
     public int ammo;
     public int coin;
@@ -24,13 +26,15 @@ public class Moving : MonoBehaviour
 
     bool jDown;
     bool fDown;
+    bool gDown;
     bool iDown;
     bool sDown1;
     bool sDown2;
     bool sDown3;
 
     bool isJump;
-    bool isFireReady;
+    bool isFireReady = true;
+    bool isBroder;
 
     Vector3 moveVec;
 
@@ -55,6 +59,7 @@ public class Moving : MonoBehaviour
         Move();
         Turn();
         Jump();
+        Grenade();
         Attack();
         Swap();
         Interation();
@@ -65,7 +70,8 @@ public class Moving : MonoBehaviour
         hAxis = Input.GetAxisRaw("Horizontal");
         vAxis = Input.GetAxisRaw("Vertical");
         jDown = Input.GetButtonDown("Jump");
-        fDown = Input.GetButtonDown("Fire1");
+        fDown = Input.GetButton("Fire1");
+        gDown = Input.GetButtonDown("Fire2");
         iDown = Input.GetButtonDown("Interation");
         sDown1 = Input.GetButtonDown("Swap1");
         sDown2 = Input.GetButtonDown("Swap2");
@@ -76,6 +82,8 @@ public class Moving : MonoBehaviour
     {
         moveVec = new Vector3(hAxis, 0, vAxis).normalized;
 
+        
+        if(!isBroder)
         transform.position += moveVec * speed * Time.deltaTime;
 
         anim.SetBool("isRun", moveVec != Vector3.zero);
@@ -84,6 +92,7 @@ public class Moving : MonoBehaviour
     void Turn()
     {
         transform.LookAt(transform.position + moveVec);
+
     }
 
     void Jump()
@@ -97,6 +106,34 @@ public class Moving : MonoBehaviour
         }
     }
 
+    void Grenade()
+    {
+        if (hasGrenades == 0)
+            return;
+
+        if (gDown)
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit rayHit;
+            if (Physics.Raycast(ray, out rayHit, 100))
+            {
+                Vector3 nextVec = rayHit.point - transform.position;
+                nextVec.y = 5;
+                nextVec.z = 15;
+
+
+                GameObject instantGrenade = Instantiate(grenadeObject, transform.position, transform.rotation);
+                Rigidbody rigidGrenade = instantGrenade.GetComponent<Rigidbody>();
+                rigidGrenade.AddForce(nextVec, ForceMode.Impulse);
+                rigidGrenade.AddTorque(Vector3.back * 10, ForceMode.Impulse);
+
+                hasGrenades--;
+                grenades[hasGrenades].SetActive(false);
+            }
+
+        }
+    }
+
     void Attack()
     {
         if (equipWeapon == null)
@@ -105,10 +142,10 @@ public class Moving : MonoBehaviour
         fireDelay += Time.deltaTime;
         isFireReady = equipWeapon.rate < fireDelay;
 
-        if(fDown && isFireReady)
+        if (fDown && isFireReady)
         {
             equipWeapon.Use();
-            anim.SetTrigger(equipWeapon.type == Weapon.Type.Melee ? "doSwing" : "doShot"); 
+            anim.SetTrigger(equipWeapon.type == Weapon.Type.Melee ? "doSwing" : "doShot");
             fireDelay = 0;
         }
     }
@@ -133,9 +170,9 @@ public class Moving : MonoBehaviour
 
     void Interation()
     {
-        if(iDown && nearObject != null)
+        if (iDown && nearObject != null)
         {
-            if(nearObject.tag == "Weapon")
+            if (nearObject.tag == "Weapon")
             {
                 Item item = nearObject.GetComponent<Item>();
                 int weaponIndex = item.value;
@@ -146,9 +183,26 @@ public class Moving : MonoBehaviour
         }
     }
 
+    void FreezeRotatoin()
+    {
+        rigid.angularVelocity = Vector3.zero;
+    }
+
+    void StopToWall()
+    {
+        Debug.DrawRay(transform.position, transform.forward * 1, Color.green);
+        isBroder = Physics.Raycast(transform.position, transform.forward, 1, LayerMask.GetMask("Wall"));
+    }
+
+    void FixedUpdate()
+    {
+        FreezeRotatoin();
+        StopToWall();
+    }
+
     void OnCollisionExit(Collision collision)
     {
-        if(collision.gameObject.tag == "Floor")
+        if (collision.gameObject.tag == "Floor")
         {
             anim.SetBool("isJump", false);
             isJump = false;
@@ -156,7 +210,7 @@ public class Moving : MonoBehaviour
     }
     private void OnTriggerEnter(Collider other)
     {
-        if(other.tag == "Item")
+        if (other.tag == "Item")
         {
             Item item = other.GetComponent<Item>();
             switch (item.type)
