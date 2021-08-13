@@ -108,7 +108,7 @@ public class Moving : MonoBehaviour
         if(fDown && isFireReady)
         {
             equipWeapon.Use();
-            anim.SetTrigger("doSwing");
+            anim.SetTrigger(equipWeapon.type == Weapon.Type.Melee ? "doSwing" : "doShot"); 
             fireDelay = 0;
         }
     }
